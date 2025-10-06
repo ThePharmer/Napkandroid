@@ -1,5 +1,5 @@
-# Napkin-Collect-Android
-An android app to send thought to Napkin.one
+# Napkandroid
+An android app to send thoughts to Napkin.one
 
 ## Napkin API Document 
 https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts
@@ -8,5 +8,5 @@ https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts
 - I use [OkHttp](https://square.github.io/okhttp/) to send POST request
 
 # Features
-- Send thought to Napkin
+- Send thoughts to Napkin
 - Share text from other apps to Napkin
