@@ -33,7 +33,21 @@ The Napkin.one API provides an endpoint for creating thoughts programmatically. 
 
 **Headers**:
 ```
+Accept: application/json
 Content-Type: application/json
+```
+
+**Official Sample Call** (from documentation):
+```bash
+curl https://app.napkin.one/api/createThought \
+-X POST \
+-H 'Accept:application/json' \
+-H 'Content-Type: application/json' -d '{
+    "email": "leonardo@davinci.it",
+    "token": "macchina-dettatura-ec1air8wcr",
+    "thought": "The natural desire of good men is knowledge.",
+    "sourceUrl": "https://thevisualagency.com/works/decoding-leonardo-da-vinci-for-the-world/"
+}'
 ```
 
 **Request Body**:
@@ -76,25 +90,41 @@ Content-Type: application/json
 
 ### Response
 
-**Status**: ⚠️ UNKNOWN - To be determined during Spec 2 implementation
+**Status**: ✅ CONFIRMED - API documentation provided by user
 
-**Reason**: API documentation at https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts returned 403 Forbidden during research phase.
+**Success Response**:
 
-**Expected Success Response** (Estimated):
+**Status Code**: `200 OK`
 
-**Status Code**: `200 OK` or `201 Created`
-
-**Response Body** (Hypothetical):
+**Response Body**:
 ```json
 {
-  "success": true,
-  "thoughtId": "string",
-  "createdAt": "ISO 8601 timestamp",
-  "message": "Thought created successfully"
+  "thoughtId": "-NV-DjhK61Ct4mMx-K06",
+  "url": "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06"
 }
 ```
 
-**Expected Error Responses** (Estimated):
+**Field Specifications**:
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| thoughtId | string | Unique identifier for the created thought | "-NV-DjhK61Ct4mMx-K06" |
+| url | string | Direct URL to view the thought in Napkin.one | "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06" |
+
+**Sample Response** (from official documentation):
+```json
+{
+   "thoughtId": "-NV-DjhK61Ct4mMx-K06",
+   "url": "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06"
+}
+```
+
+**Notes**:
+- No `success` or `message` fields in response (simpler than estimated)
+- ThoughtId format appears to be Firebase-style key (starts with `-`)
+- URL provides direct link to thought for verification/sharing
+
+**Error Responses** (Estimated - not documented):
 
 #### 400 Bad Request
 Invalid request format or missing required fields.
@@ -157,41 +187,58 @@ Server-side error.
 
 ### Phase 1: Architecture Foundation (Current)
 - ✅ Document request format (confirmed from spec)
-- ⚠️ Defer response model creation (response structure unknown)
+- ✅ Response model confirmed (API documentation provided)
 - ✅ Prepare Retrofit dependencies
 
 ### Phase 2: Send Thought Feature (Spec 2)
-- Implement Retrofit API interface with flexible response handling
+- Create ThoughtResponse data model with confirmed structure
+- Implement Retrofit API interface with typed response
 - Test with real Napkin.one account credentials
-- Capture actual response structure through logging/debugging
-- Update this contract with confirmed response format
-- Create ThoughtResponse data model based on actual response
+- Verify response matches documentation
 
-### Testing Approach (Spec 2)
+### Implementation Approach (Spec 2)
 
+**ThoughtResponse Data Model**:
 ```kotlin
-// Initial implementation with flexible response capture
+package com.taquangkhoi.napkincollect.data.model
+
+import com.google.gson.annotations.SerializedName
+
+data class ThoughtResponse(
+    @SerializedName("thoughtId")
+    val thoughtId: String,
+
+    @SerializedName("url")
+    val url: String
+)
+```
+
+**Retrofit API Interface**:
+```kotlin
 interface NapkinApiService {
     @POST("api/createThought")
     suspend fun createThought(
         @Body request: ThoughtRequest
-    ): Response<ResponseBody>  // Capture raw response
+    ): Response<ThoughtResponse>  // Typed response
 }
+```
 
-// In Repository
-suspend fun sendThought(request: ThoughtRequest): Result<Unit> {
+**Repository Implementation**:
+```kotlin
+suspend fun sendThought(request: ThoughtRequest): Result<ThoughtResponse> {
     return withContext(Dispatchers.IO) {
         try {
             val response = apiService.createThought(request)
             if (response.isSuccessful) {
-                // Log response for analysis (debug builds only)
-                val rawResponse = response.body()?.string()
-                Log.d("NapkinAPI", "Success response: $rawResponse")
-                Result.success(Unit)
+                val body = response.body()
+                if (body != null) {
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("Empty response body"))
+                }
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.d("NapkinAPI", "Error response: $errorBody")
-                Result.failure(Exception("HTTP ${response.code()}"))
+                Result.failure(Exception("HTTP ${response.code()}: $errorBody"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -199,12 +246,6 @@ suspend fun sendThought(request: ThoughtRequest): Result<Unit> {
     }
 }
 ```
-
-After capturing actual responses:
-1. Analyze response structure
-2. Create ThoughtResponse data class
-3. Update API interface to use typed response
-4. Update this contract documentation with confirmed format
 
 ---
 
@@ -522,11 +563,13 @@ val loggingInterceptor = HttpLoggingInterceptor().apply {
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Request Format | ✅ Confirmed | From specification |
+| Request Format | ✅ Confirmed | From official documentation |
+| Request Headers | ✅ Confirmed | Accept + Content-Type headers |
 | Request Validation | ✅ Defined | Client-side validation rules documented |
-| Response Format | ⚠️ Unknown | To be determined in Spec 2 |
-| Error Codes | ⚠️ Estimated | Based on REST conventions |
-| Rate Limits | ❓ Unknown | No documentation available |
+| Response Format | ✅ Confirmed | API documentation provided by user |
+| Response Fields | ✅ Confirmed | thoughtId (string) + url (string) |
+| Error Codes | ⚠️ Estimated | Based on REST conventions (not documented) |
+| Rate Limits | ⚠️ Unknown | API note: "for single thoughts, not bulk imports" |
 | Authentication | ✅ Confirmed | Token + email in request body |
 | HTTPS | ✅ Enforced | Retrofit default behavior |
 
@@ -534,16 +577,16 @@ val loggingInterceptor = HttpLoggingInterceptor().apply {
 
 ## References
 
-- Napkin.one API Documentation: https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts (403 - access restricted)
+- Napkin.one API Documentation: https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts
 - Retrofit Documentation: https://square.github.io/retrofit/
 - OkHttp Documentation: https://square.github.io/okhttp/
 - Constitution: `/memory/constitution.md` v1.1.0 (API Integration, Security)
-- Feature Spec: `../spec.md` (FR-001, FR-004, FR-005)
-- Data Model: `../data-model.md` (ThoughtRequest entity)
-- Research: `../research.md` (Section 4: API Contract Verification)
+- Feature Spec: `../spec.md` (FR-001, FR-004, FR-005, FR-013)
+- Data Model: `../data-model.md` (ThoughtRequest, ThoughtResponse entities)
+- Research: `../research.md` (Section 4: API Contract Verification - RESOLVED)
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Last Updated**: 2025-11-05
-**Status**: Draft - Pending API testing verification in Spec 2
+**Status**: Complete - API contract confirmed from official documentation

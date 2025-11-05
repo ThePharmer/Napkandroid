@@ -2,48 +2,64 @@
 
 **Feature**: 001-architecture-foundation
 **Date**: 2025-11-05
-**Status**: Foundation models only - API models deferred to Spec 2
+**Status**: Complete - All models confirmed, to be implemented in Spec 2
 
 ## Overview
 
-This document defines the core data models for the Napkandroid application's architectural foundation. These models establish patterns for state management (UiState) and API communication (ThoughtRequest). All models follow Kotlin best practices and constitutional requirements for immutability and type safety.
+This document defines the core data models for the Napkandroid application's architectural foundation. These models establish patterns for state management (UiState) and API communication (ThoughtRequest, ThoughtResponse). All models follow Kotlin best practices and constitutional requirements for immutability and type safety. API response structure confirmed from official Napkin.one documentation.
 
 ## Entity Diagram
 
 ```
-┌─────────────────────────────┐
-│   UiState<T> (Sealed)       │
-│                             │
-│  ├─ Idle                    │
-│  ├─ Loading                 │
-│  ├─ Success<T>(data: T)     │
-│  └─ Error(message: String)  │
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│   UiState<T> (Sealed)           │
+│                                 │
+│  ├─ Idle                        │
+│  ├─ Loading                     │
+│  ├─ Success<T>(data: T)         │
+│  └─ Error(message: String)      │
+└─────────────────────────────────┘
                 │
                 │ used by
                 ▼
-┌─────────────────────────────┐
-│   ViewModels                │  (Spec 2)
-│  (MainViewModel, etc.)      │
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│   ViewModels                    │  (Spec 2)
+│  (MainViewModel, etc.)          │
+└─────────────────────────────────┘
                 │
                 │ sends
                 ▼
-┌─────────────────────────────┐
-│   ThoughtRequest            │
-│                             │
-│  - email: String            │
-│  - token: String            │
-│  - thought: String          │
-│  - sourceUrl: String        │
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│   ThoughtRequest                │
+│                                 │
+│  - email: String                │
+│  - token: String                │
+│  - thought: String              │
+│  - sourceUrl: String            │
+└─────────────────────────────────┘
                 │
-                │ serialized to
+                │ HTTP POST
                 ▼
-┌─────────────────────────────┐
-│   Napkin.one API            │
-│   POST /api/createThought   │
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│   Napkin.one API                │
+│   POST /api/createThought       │
+└─────────────────────────────────┘
+                │
+                │ returns
+                ▼
+┌─────────────────────────────────┐
+│   ThoughtResponse ✅            │
+│                                 │
+│  - thoughtId: String            │
+│  - url: String                  │
+└─────────────────────────────────┘
+                │
+                │ wrapped in
+                ▼
+┌─────────────────────────────────┐
+│   UiState<ThoughtResponse>      │
+│   (Success or Error)            │
+└─────────────────────────────────┘
 ```
 
 ## Entities
@@ -262,22 +278,101 @@ suspend fun sendThought(email: String, token: String, thought: String, sourceUrl
 
 **Purpose**: API response model for thought creation
 
-**Status**: ⚠️ DEFERRED TO SPEC 2
+**Type**: Data class
 
-**Rationale**: API response structure unknown (documentation URL blocked). Will be determined during Spec 2 implementation through actual API testing.
+**Location**: `data/model/ThoughtResponse.kt` (Spec 2)
 
-**Location**: `data/model/ThoughtResponse.kt` (future)
+**Status**: ✅ CONFIRMED - API documentation provided, to be implemented in Spec 2
 
-**Known Requirements** (from research.md):
-- HTTP status codes: 200/201 (success), 400 (bad request), 401 (unauthorized), 500 (server error)
-- Response fields: TBD (possibly `thoughtId`, `createdAt`, `status`)
-- Error format: TBD (possibly `error`, `message`)
+**Definition**:
+```kotlin
+package com.taquangkhoi.napkincollect.data.model
 
-**Implementation Strategy** (Spec 2):
-1. Use `Response<ResponseBody>` initially to capture raw response
-2. Log response structure (debug builds only)
-3. Create ThoughtResponse model based on observed response
-4. Update contracts/ with actual API contract
+import com.google.gson.annotations.SerializedName
+
+data class ThoughtResponse(
+    @SerializedName("thoughtId")
+    val thoughtId: String,
+
+    @SerializedName("url")
+    val url: String
+)
+```
+
+**Fields**:
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| thoughtId | String | Yes | Unique identifier for the created thought | "-NV-DjhK61Ct4mMx-K06" |
+| url | String | Yes | Direct URL to view the thought in Napkin.one | "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06" |
+
+**Validation Rules**:
+- Both fields are non-nullable (enforced by Kotlin type system)
+- thoughtId format: Firebase-style key (starts with `-`, alphanumeric)
+- url format: Full HTTPS URL to Napkin.one domain
+
+**JSON Response Example** (from official API documentation):
+```json
+{
+   "thoughtId": "-NV-DjhK61Ct4mMx-K06",
+   "url": "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06"
+}
+```
+
+**Usage Pattern**:
+```kotlin
+// In Repository
+suspend fun sendThought(request: ThoughtRequest): Result<ThoughtResponse> {
+    return withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.createThought(request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("HTTP ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
+
+// In ViewModel
+fun sendThought() {
+    viewModelScope.launch {
+        _uiState.value = UiState.Loading
+        val result = repository.sendThought(request)
+        _uiState.value = if (result.isSuccess) {
+            val thoughtResponse = result.getOrNull()!!
+            // Can use thoughtResponse.url for sharing or verification
+            UiState.Success(thoughtResponse)
+        } else {
+            UiState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+        }
+    }
+}
+```
+
+**Relationships**:
+- Returned by Repository (ThoughtRepository in Spec 2)
+- Received via Retrofit API interface (NapkinApiService in Spec 2)
+- Can be wrapped in `UiState<ThoughtResponse>` for UI state management
+- URL field can be used for:
+  - Verification (open in browser to confirm thought created)
+  - Sharing (share URL with other apps)
+  - Analytics (track successful creations)
+
+**Key Insights**:
+- **Simpler than expected**: Only 2 fields (no `success`, `message`, `createdAt`)
+- **Firebase backend**: ThoughtId format indicates Napkin.one uses Firebase Realtime Database
+- **Immediate verification**: URL provides direct link for instant confirmation
+- **No timestamps**: Server-side timestamp not included in response (may be internal only)
+
+**Testing Considerations**:
+- Easy to create test instances (simple 2-field data class)
+- URL field can be validated with regex: `^https://app\.napkin\.one/t/[A-Za-z0-9_-]+$`
+- thoughtId format: `^-[A-Za-z0-9_-]+$`
+- Mock responses simple due to minimal fields
 
 ---
 

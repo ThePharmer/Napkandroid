@@ -199,13 +199,13 @@ dependencies {
 
 **Question**: What does the Napkin.one API return when creating a thought? (FR-013)
 
-**Decision**: NEEDS IMPLEMENTATION VERIFICATION - API documentation URL is access-restricted
+**Decision**: ✅ RESOLVED - API documentation provided by user
 
-**Status**: ⚠️ BLOCKED - API documentation at https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts returned 403 Forbidden
+**Status**: ✅ CONFIRMED - Official API documentation received after initial research phase
 
-**Known Information from Spec**:
+**Confirmed API Contract**:
 
-**Request Format** (confirmed from spec):
+**Request Format**:
 ```json
 {
   "email": "string",
@@ -215,50 +215,56 @@ dependencies {
 }
 ```
 
+**Request Headers**:
+```
+Accept: application/json
+Content-Type: application/json
+```
+
 **Endpoint**: `https://app.napkin.one/api/createThought` (POST)
 
-**Response Structure**: UNKNOWN - requires verification
+**Success Response** (HTTP 200):
+```json
+{
+   "thoughtId": "-NV-DjhK61Ct4mMx-K06",
+   "url": "https://app.napkin.one/t/-NV-DjhK61Ct4mMx-K06"
+}
+```
 
-**Required Information** (to be determined during implementation):
-1. **Success Response**:
-   - HTTP status code (likely 200 or 201)
-   - Response body structure (JSON fields and types)
-   - Returned identifiers (e.g., `thoughtId`, `createdAt`, `status`)
+**Response Fields**:
+- `thoughtId` (string): Unique identifier for the created thought (Firebase-style key format)
+- `url` (string): Direct URL to view the thought in Napkin.one web app
 
-2. **Error Response**:
-   - HTTP error codes (400, 401, 403, 500, etc.)
-   - Error message format (e.g., `{"error": "string", "message": "string"}`)
-   - Error code/type fields (if any)
+**Key Findings**:
+1. **Simpler than estimated**: No `success`, `message`, or `createdAt` fields - just thoughtId and url
+2. **Firebase backend**: ThoughtId format (`-NV-DjhK61Ct4mMx-K06`) indicates Firebase Realtime Database
+3. **Immediate access**: URL provided for instant verification/sharing of created thought
+4. **Rate limiting**: Documentation notes API is "for single thoughts, not bulk imports" (suggests rate limits exist but not documented)
 
-3. **Status Codes** (estimated based on REST conventions):
-   - 200/201: Success - thought created
-   - 400: Bad Request - invalid email, token, or thought format
-   - 401: Unauthorized - invalid credentials
-   - 403: Forbidden - valid credentials but no access
-   - 429: Rate limit exceeded
-   - 500: Server error
+**Error Responses**: Not documented in official API docs (to be discovered during testing)
 
-**Implementation Strategy**:
-1. **Spec 1 (Architecture Foundation)**: Create minimal `ThoughtRequest` model only (request is known)
+**Implementation Strategy** (Updated):
+1. **Spec 1 (Architecture Foundation)**:
+   - Create `ThoughtRequest` model ✅
+   - Document confirmed response structure in contracts/ ✅
 2. **Spec 2 (Send Thought Feature)**:
-   - Implement initial API call with basic error handling
-   - Test with real Napkin.one account
-   - Capture actual response structure through logging/debugging
-   - Create `ThoughtResponse` model based on observed response
-   - Update API contract documentation in contracts/
+   - Create `ThoughtResponse` model with confirmed structure
+   - Implement typed Retrofit API interface
+   - Test with real Napkin.one account to verify
+   - Discover and document error response formats through testing
 
-**Mitigation**:
-- Use Retrofit's `Response<ResponseBody>` for initial testing to capture raw response
-- Add comprehensive logging (debug builds only) to observe actual API behavior
-- Create flexible error handling that can adapt to discovered response format
+**ThoughtResponse Model** (to be created in Spec 2):
+```kotlin
+data class ThoughtResponse(
+    @SerializedName("thoughtId")
+    val thoughtId: String,
 
-**Decision Deferred**: ThoughtResponse model creation deferred to Spec 2 after API testing
+    @SerializedName("url")
+    val url: String
+)
+```
 
-**Alternatives Considered**:
-- **Mock API Response**: Create assumed response structure. **Rejected** because:
-  - High risk of mismatch with actual API
-  - Constitution requires verification against actual API
-- **Contact Napkin.one Support**: Request API documentation. **Option available** if implementation testing is insufficient
+**Resolution Source**: User provided official API documentation content after initial 403 error during research phase
 
 ---
 
@@ -419,16 +425,18 @@ implementation("androidx.security:security-crypto:1.1.0-alpha06")
 | Dependency Management | Compose BOM + explicit versions for third-party libs | Spec 1 |
 | Hilt Setup | Canonical setup with kapt + verbose logging | Spec 1 |
 | ProGuard/R8 | Comprehensive rules + R8 full mode validation | Spec 1 |
-| API Contract | Deferred - verify during implementation | Spec 2 |
+| API Contract | ✅ Confirmed - thoughtId + url response structure | Spec 1 (documented), Spec 2 (implementation) |
 | Build Time | Baseline measurement + 30s constraint monitoring | Spec 1 |
 | EncryptedSharedPreferences | Standard pattern with MasterKey | Spec 3 |
 
 ## Unresolved Items
 
-1. **Napkin.one API Response Structure**: ⚠️ BLOCKED by 403 on documentation URL
-   - **Action Required**: Test with real API during Spec 2 implementation
-   - **Owner**: Implementation engineer
-   - **Due**: Before creating ThoughtResponse model in Spec 2
+~~1. **Napkin.one API Response Structure**: ⚠️ BLOCKED by 403 on documentation URL~~
+   - **Status**: ✅ RESOLVED - User provided official API documentation
+   - **Resolution**: Response structure confirmed (thoughtId + url fields)
+   - **See**: Section 4 above for complete API contract details
+
+**All items resolved - No outstanding research questions**
 
 ## Constitution Compliance
 
