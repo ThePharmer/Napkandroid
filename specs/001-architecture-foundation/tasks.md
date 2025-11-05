@@ -46,6 +46,7 @@ This document defines all implementation tasks for the Architecture Foundation f
 - [ ] T009 [P] Add Hilt dependencies to NapkinCollect/app/build.gradle.kts (hilt-android:2.48, hilt-compiler:2.48 with kapt, hilt-navigation-compose:1.1.0)
 - [ ] T010 [P] Add EncryptedSharedPreferences dependency to NapkinCollect/app/build.gradle.kts (security-crypto:1.1.0-alpha06)
 - [ ] T011 [P] Add Gson dependency to NapkinCollect/app/build.gradle.kts (gson:2.10.1)
+- [ ] T011b [P] Add Compose BOM platform dependency to NapkinCollect/app/build.gradle.kts (androidx.compose:compose-bom:2024.02.00)
 - [ ] T012 Configure kapt settings in NapkinCollect/app/build.gradle.kts (correctErrorTypes=true, useBuildCache=false, verbose logging)
 - [ ] T013 Add ProGuard rules for Retrofit to NapkinCollect/app/proguard-rules.pro
 - [ ] T014 [P] Add ProGuard rules for Gson to NapkinCollect/app/proguard-rules.pro
@@ -297,11 +298,11 @@ If issues occur during implementation:
 
 ## Task Summary
 
-### Total Tasks: 51
+### Total Tasks: 52
 
 **By Phase**:
 - Phase 1 (Setup): 3 tasks
-- Phase 2 (Foundational): 16 tasks
+- Phase 2 (Foundational): 17 tasks
 - Phase 3 (User Story 1): 7 tasks
 - Phase 4 (User Story 2): 16 tasks
 - Phase 5 (Validation): 9 tasks

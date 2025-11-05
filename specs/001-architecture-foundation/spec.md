@@ -62,21 +62,21 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-002**: System MUST configure Hilt dependency injection with Application class
 - **FR-003**: Project MUST include directory structure matching constitution specification
 - **FR-004**: System MUST add INTERNET permission to AndroidManifest.xml
-- **FR-005**: System MUST create base data models for API communication (ThoughtRequest, ThoughtResponse)
+- **FR-005**: System MUST create base data models for API communication (ThoughtRequest). Note: ThoughtResponse model creation deferred to Spec 2 based on confirmed API contract
 - **FR-006**: System MUST configure ProGuard rules for Retrofit and Gson/kotlinx.serialization
 - **FR-007**: System MUST set up Hilt plugins and kapt configuration
 - **FR-008**: System MUST create base sealed class for UiState pattern (Idle, Loading, Success, Error)
-- **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
+- **FR-009**: System MUST use Android BOM (Bill of Materials) for dependency version management to prevent conflicts. Version catalogs SHOULD be considered for future iterations
 - **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
 - **FR-011**: System MUST enable verbose kapt logging in build configuration to facilitate troubleshooting of Hilt annotation processing issues
 - **FR-012**: System MUST measure clean build time baseline before implementation and validate post-implementation build time against 30-second increase constraint
-- **FR-013**: System MUST consult Napkin.one API documentation to determine actual response structure, status codes, and error formats before creating ThoughtResponse model
+- **FR-013**: Project documentation MUST include verified Napkin.one API contract for request structure and authentication. Note: API response structure confirmed in contracts/napkin-api.md; ThoughtResponse model creation deferred to Spec 2
 
 ### Key Entities
 
-- **ThoughtRequest**: API request model containing email, token, thought, sourceUrl
-- **ThoughtResponse**: API response model structure to be determined from Napkin.one API documentation (https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts)
-- **UiState<T>**: Sealed class representing UI states (Idle, Loading, Success<T>, Error)
+- **ThoughtRequest**: API request model containing email, token, thought, sourceUrl (implemented in this spec)
+- **ThoughtResponse**: API response model with thoughtId and url fields (structure confirmed in contracts/napkin-api.md, implementation deferred to Spec 2)
+- **UiState<T>**: Sealed class representing UI states (Idle, Loading, Success<T>, Error) (implemented in this spec)
 - **NapkinApplication**: Hilt application class for DI initialization
 
 ## Success Criteria
