@@ -4,6 +4,16 @@
 **Created**: 2025-11-05
 **Status**: Draft
 
+## Clarifications
+
+### Session 2025-11-05
+
+- Q: Dependency conflict resolution strategy - What approach should be used when dependency versions conflict? → A: Use Android BOM (Bill of Materials) and version catalogs to align dependency versions automatically
+- Q: ProGuard rules handling for new libraries - How should ProGuard rules be discovered and validated for new dependencies? → A: Proactive discovery - Test release builds early, use R8 full mode, and validate with automated tests
+- Q: Hilt annotation processing failure recovery - What should be done if Hilt kapt fails during compilation? → A: Incremental debugging - Clean build, invalidate caches, check for circular dependencies, enable verbose kapt logging
+- Q: Build time baseline measurement - How should the baseline be established for SC-005's 30-second build time increase constraint? → A: Clean build - Measure full clean build time (./gradlew clean build) as baseline, no caching
+- Q: API response structure - What does the Napkin.one API return when creating a thought? → A: Check API documentation - Consult Napkin.one API docs to determine actual response structure and status codes
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Development Infrastructure Ready (Priority: P1)
@@ -40,9 +50,9 @@ As a developer, I need the codebase organized according to the constitution's st
 
 ### Edge Cases
 
-- What happens when dependency versions conflict?
-- How does the system handle ProGuard rules for new libraries?
-- What if Hilt annotation processing fails?
+- **Dependency version conflicts**: Use Android BOM (Bill of Materials) and version catalogs to automatically align dependency versions and minimize conflicts
+- **ProGuard rules for new libraries**: Test release builds early in development using R8 full mode, run automated tests on release builds, and validate that all reflection-based libraries have appropriate keep rules
+- **Hilt annotation processing failures**: Use incremental debugging approach - clean build, invalidate caches, check for circular dependencies in DI graph, and enable verbose kapt logging to identify root cause
 
 ## Requirements
 
@@ -56,11 +66,16 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-006**: System MUST configure ProGuard rules for Retrofit and Gson/kotlinx.serialization
 - **FR-007**: System MUST set up Hilt plugins and kapt configuration
 - **FR-008**: System MUST create base sealed class for UiState pattern (Idle, Loading, Success, Error)
+- **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
+- **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
+- **FR-011**: System MUST enable verbose kapt logging in build configuration to facilitate troubleshooting of Hilt annotation processing issues
+- **FR-012**: System MUST measure clean build time baseline before implementation and validate post-implementation build time against 30-second increase constraint
+- **FR-013**: System MUST consult Napkin.one API documentation to determine actual response structure, status codes, and error formats before creating ThoughtResponse model
 
 ### Key Entities
 
 - **ThoughtRequest**: API request model containing email, token, thought, sourceUrl
-- **ThoughtResponse**: API response model (if needed based on API contract)
+- **ThoughtResponse**: API response model structure to be determined from Napkin.one API documentation (https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts)
 - **UiState<T>**: Sealed class representing UI states (Idle, Loading, Success<T>, Error)
 - **NapkinApplication**: Hilt application class for DI initialization
 
@@ -72,8 +87,8 @@ As a developer, I need the codebase organized according to the constitution's st
 - **SC-002**: Application launches and Hilt initializes without crashes
 - **SC-003**: All constitutional directory structure exists (6 directories: data, ui, viewmodel, di, utils, and existing components)
 - **SC-004**: Base models and classes can be imported and used in other modules
-- **SC-005**: Build time increases by less than 30 seconds compared to current baseline
-- **SC-006**: ProGuard release build completes successfully with no missing class warnings
+- **SC-005**: Clean build time (./gradlew clean build) increases by less than 30 seconds compared to pre-implementation baseline
+- **SC-006**: ProGuard release build completes successfully with R8 full mode, passes automated tests, and produces no missing class warnings
 
 ## Technical Specifications
 
@@ -130,6 +145,88 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.48" apply false
 }
 ```
+
+### Dependency Version Management
+
+To prevent dependency conflicts, use Android BOM (Bill of Materials):
+
+**In `NapkinCollect/app/build.gradle.kts`**, add platform dependencies:
+```kotlin
+dependencies {
+    // Use AndroidX BOM for version alignment
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+
+    // Compose dependencies without versions (managed by BOM)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+
+    // Other dependencies as listed above with explicit versions
+}
+```
+
+Consider migrating to Gradle version catalogs (libs.versions.toml) in future iterations for centralized version management.
+
+### Hilt/Kapt Troubleshooting
+
+If Hilt annotation processing fails, follow this incremental debugging procedure:
+
+1. **Clean Build**:
+   ```bash
+   ./gradlew clean
+   ./gradlew build --refresh-dependencies
+   ```
+
+2. **Invalidate Caches**: In Android Studio, `File > Invalidate Caches > Invalidate and Restart`
+
+3. **Enable Verbose Kapt Logging** in `build.gradle.kts`:
+   ```kotlin
+   kapt {
+       correctErrorTypes = true
+       useBuildCache = false
+       arguments {
+           arg("verbose", "true")
+       }
+   }
+   ```
+
+4. **Check for Common Issues**:
+   - Circular dependencies in DI modules
+   - Missing `@HiltAndroidApp` annotation on Application class
+   - Missing `@AndroidEntryPoint` on Activities/Fragments using injection
+   - Conflicting kapt versions
+
+5. **Review Build Output**: Kapt errors typically appear with detailed stack traces indicating the problematic class or module
+
+6. **Verify Hilt Setup**: Ensure all Hilt components follow the canonical patterns from Hilt documentation
+
+### Build Performance Measurement
+
+To validate SC-005 (build time increase < 30 seconds), establish and measure baseline:
+
+1. **Establish Baseline** (before implementation):
+   ```bash
+   ./gradlew clean
+   time ./gradlew build
+   ```
+   Record the total build time (e.g., "Build completed in 1m 45s")
+
+2. **Repeat Measurement**: Run clean build 3 times and take the average to account for system variance
+
+3. **Post-Implementation Validation**:
+   ```bash
+   ./gradlew clean
+   time ./gradlew build
+   ```
+   Compare new average build time against baseline
+
+4. **Acceptable Result**: New build time ≤ (Baseline + 30 seconds)
+
+5. **Documentation**: Record baseline and post-implementation times in implementation notes
+
+**Example**:
+- Baseline: 1m 45s (105 seconds average of 3 runs)
+- Post-implementation: 2m 10s (130 seconds)
+- Increase: 25 seconds ✓ (within 30-second constraint)
 
 ### Directory Structure
 
@@ -207,6 +304,31 @@ class NapkinApplication : Application()
     >
 ```
 
+### API Contract Verification
+
+Before creating the ThoughtResponse model, consult the Napkin.one API documentation:
+
+**Reference**: https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts
+
+**Required Information to Extract**:
+1. **Success Response**:
+   - HTTP status code (e.g., 200, 201)
+   - Response body structure (JSON fields and types)
+   - Any returned identifiers (e.g., thoughtId, createdAt)
+
+2. **Error Response**:
+   - HTTP error codes (e.g., 400, 401, 500)
+   - Error message format
+   - Error code/type fields (if any)
+
+3. **Status Codes**:
+   - 200/201: Success cases
+   - 400: Invalid request (bad email, token, or thought format)
+   - 401: Unauthorized (invalid credentials)
+   - 500: Server error
+
+**Implementation Note**: The ThoughtResponse data class should be created in Spec 2 (Send Thought Feature) based on findings from API documentation. This spec only establishes the foundation - actual API integration happens in Spec 2.
+
 ### ProGuard Rules
 
 Add to `proguard-rules.pro`:
@@ -239,6 +361,28 @@ Add to `proguard-rules.pro`:
 -keep class javax.inject.** { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 ```
+
+### ProGuard/R8 Validation Strategy
+
+To proactively discover and validate ProGuard rules:
+
+1. **Enable R8 Full Mode** in `gradle.properties`:
+   ```properties
+   android.enableR8.fullMode=true
+   ```
+
+2. **Early Release Build Testing**: Create release build variant early in development cycle, before implementing features
+
+3. **Automated Testing on Release Builds**: Run unit and integration tests against release APK to catch reflection/serialization issues
+
+4. **Validation Checklist**:
+   - Build release APK successfully
+   - Install and launch release APK on device/emulator
+   - Run automated test suite against release build
+   - Check logcat for R8 warnings during build
+   - Verify no `ClassNotFoundException` or `NoSuchMethodException` at runtime
+
+5. **Continuous Validation**: Test release builds as part of CI/CD pipeline (future enhancement in Spec 4)
 
 ## Assumptions
 
