@@ -12,6 +12,7 @@
 - Q: ProGuard rules handling for new libraries - How should ProGuard rules be discovered and validated for new dependencies? → A: Proactive discovery - Test release builds early, use R8 full mode, and validate with automated tests
 - Q: Hilt annotation processing failure recovery - What should be done if Hilt kapt fails during compilation? → A: Incremental debugging - Clean build, invalidate caches, check for circular dependencies, enable verbose kapt logging
 - Q: Build time baseline measurement - How should the baseline be established for SC-005's 30-second build time increase constraint? → A: Clean build - Measure full clean build time (./gradlew clean build) as baseline, no caching
+- Q: API response structure - What does the Napkin.one API return when creating a thought? → A: Check API documentation - Consult Napkin.one API docs to determine actual response structure and status codes
 
 ## User Scenarios & Testing
 
@@ -69,11 +70,12 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
 - **FR-011**: System MUST enable verbose kapt logging in build configuration to facilitate troubleshooting of Hilt annotation processing issues
 - **FR-012**: System MUST measure clean build time baseline before implementation and validate post-implementation build time against 30-second increase constraint
+- **FR-013**: System MUST consult Napkin.one API documentation to determine actual response structure, status codes, and error formats before creating ThoughtResponse model
 
 ### Key Entities
 
 - **ThoughtRequest**: API request model containing email, token, thought, sourceUrl
-- **ThoughtResponse**: API response model (if needed based on API contract)
+- **ThoughtResponse**: API response model structure to be determined from Napkin.one API documentation (https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts)
 - **UiState<T>**: Sealed class representing UI states (Idle, Loading, Success<T>, Error)
 - **NapkinApplication**: Hilt application class for DI initialization
 
@@ -301,6 +303,31 @@ class NapkinApplication : Application()
         ...
     >
 ```
+
+### API Contract Verification
+
+Before creating the ThoughtResponse model, consult the Napkin.one API documentation:
+
+**Reference**: https://intercom.help/napkin-support/en/articles/6419774-api-creating-thoughts
+
+**Required Information to Extract**:
+1. **Success Response**:
+   - HTTP status code (e.g., 200, 201)
+   - Response body structure (JSON fields and types)
+   - Any returned identifiers (e.g., thoughtId, createdAt)
+
+2. **Error Response**:
+   - HTTP error codes (e.g., 400, 401, 500)
+   - Error message format
+   - Error code/type fields (if any)
+
+3. **Status Codes**:
+   - 200/201: Success cases
+   - 400: Invalid request (bad email, token, or thought format)
+   - 401: Unauthorized (invalid credentials)
+   - 500: Server error
+
+**Implementation Note**: The ThoughtResponse data class should be created in Spec 2 (Send Thought Feature) based on findings from API documentation. This spec only establishes the foundation - actual API integration happens in Spec 2.
 
 ### ProGuard Rules
 
