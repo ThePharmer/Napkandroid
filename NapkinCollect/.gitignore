@@ -22,6 +22,7 @@ local.properties
 *.jar
 *.apk
 *.aab
+*.backup
 
 # Build outputs
 /app/build/
