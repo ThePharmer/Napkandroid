@@ -10,6 +10,7 @@
 
 - Q: Dependency conflict resolution strategy - What approach should be used when dependency versions conflict? → A: Use Android BOM (Bill of Materials) and version catalogs to align dependency versions automatically
 - Q: ProGuard rules handling for new libraries - How should ProGuard rules be discovered and validated for new dependencies? → A: Proactive discovery - Test release builds early, use R8 full mode, and validate with automated tests
+- Q: Hilt annotation processing failure recovery - What should be done if Hilt kapt fails during compilation? → A: Incremental debugging - Clean build, invalidate caches, check for circular dependencies, enable verbose kapt logging
 
 ## User Scenarios & Testing
 
@@ -49,7 +50,7 @@ As a developer, I need the codebase organized according to the constitution's st
 
 - **Dependency version conflicts**: Use Android BOM (Bill of Materials) and version catalogs to automatically align dependency versions and minimize conflicts
 - **ProGuard rules for new libraries**: Test release builds early in development using R8 full mode, run automated tests on release builds, and validate that all reflection-based libraries have appropriate keep rules
-- What if Hilt annotation processing fails?
+- **Hilt annotation processing failures**: Use incremental debugging approach - clean build, invalidate caches, check for circular dependencies in DI graph, and enable verbose kapt logging to identify root cause
 
 ## Requirements
 
@@ -65,6 +66,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-008**: System MUST create base sealed class for UiState pattern (Idle, Loading, Success, Error)
 - **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
 - **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
+- **FR-011**: System MUST enable verbose kapt logging in build configuration to facilitate troubleshooting of Hilt annotation processing issues
 
 ### Key Entities
 
@@ -159,6 +161,39 @@ dependencies {
 ```
 
 Consider migrating to Gradle version catalogs (libs.versions.toml) in future iterations for centralized version management.
+
+### Hilt/Kapt Troubleshooting
+
+If Hilt annotation processing fails, follow this incremental debugging procedure:
+
+1. **Clean Build**:
+   ```bash
+   ./gradlew clean
+   ./gradlew build --refresh-dependencies
+   ```
+
+2. **Invalidate Caches**: In Android Studio, `File > Invalidate Caches > Invalidate and Restart`
+
+3. **Enable Verbose Kapt Logging** in `build.gradle.kts`:
+   ```kotlin
+   kapt {
+       correctErrorTypes = true
+       useBuildCache = false
+       arguments {
+           arg("verbose", "true")
+       }
+   }
+   ```
+
+4. **Check for Common Issues**:
+   - Circular dependencies in DI modules
+   - Missing `@HiltAndroidApp` annotation on Application class
+   - Missing `@AndroidEntryPoint` on Activities/Fragments using injection
+   - Conflicting kapt versions
+
+5. **Review Build Output**: Kapt errors typically appear with detailed stack traces indicating the problematic class or module
+
+6. **Verify Hilt Setup**: Ensure all Hilt components follow the canonical patterns from Hilt documentation
 
 ### Directory Structure
 
