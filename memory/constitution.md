@@ -1,14 +1,17 @@
 <!--
 Sync Impact Report:
-- Version change: [CONSTITUTION_VERSION] → 1.0.0
-- Ratification: Initial constitution for Napkandroid project
-- Modified principles: All (initial creation)
-- Added sections: All core principles, development standards, quality gates, governance
+- Version change: 1.0.0 → 1.1.0
+- Amendment: Added Kotlin-specific development standards
+- Modified sections: Development Standards (expanded with Kotlin best practices)
+- Added guidance:
+  ✅ Kotlin Coroutines patterns and requirements
+  ✅ StateFlow vs LiveData preferences
+  ✅ Compose state management best practices
+  ✅ Error handling patterns (sealed classes, Result type)
 - Templates requiring updates:
-  ✅ /memory/constitution.md - Created
-  ⚠ /.specs/spec-template.md - Review for alignment
-  ⚠ /.specs/plan-template.md - Review for alignment
-  ⚠ /.specs/tasks-template.md - Review for alignment
+  ⚠ /.specs/spec-template.md - Review for alignment with Kotlin patterns
+  ⚠ /.specs/plan-template.md - Review for alignment with async patterns
+  ⚠ /.specs/tasks-template.md - Review for alignment with testing requirements
 - Follow-up TODOs: None
 -->
 
@@ -110,6 +113,130 @@ NapkinCollect/app/src/main/java/com/taquangkhoi/napkincollect/
 - Loading, success, and error states MUST be explicitly modeled
 - Configuration changes MUST preserve user input (thought text, source URL)
 
+### Kotlin Coroutines
+
+Asynchronous operations MUST use Kotlin Coroutines:
+- Network calls MUST be executed as `suspend` functions
+- ViewModels MUST use `viewModelScope` for coroutine lifecycle management
+- Repository functions MUST be `suspend` functions for async operations
+- Structured concurrency MUST be maintained (no `GlobalScope`)
+- Coroutine dispatchers MUST be explicitly specified:
+  - `Dispatchers.IO` for network/database operations
+  - `Dispatchers.Main` for UI updates (default in `viewModelScope`)
+  - `Dispatchers.Default` for CPU-intensive work
+
+**Example**:
+```kotlin
+class MainViewModel(private val repository: ThoughtRepository) : ViewModel() {
+    fun sendThought(thought: String) {
+        viewModelScope.launch {
+            // Automatically runs on Dispatchers.Main
+            val result = repository.sendThought(thought) // suspend function
+            // Handle result
+        }
+    }
+}
+```
+
+### Reactive State with StateFlow
+
+State management MUST use `StateFlow` over `LiveData`:
+- ViewModels MUST expose state as `StateFlow<T>` or `StateFlow<UiState>`
+- Use `MutableStateFlow` internally, expose as `StateFlow` (immutability)
+- UI MUST collect state using `collectAsState()` in Composables
+- Prefer `StateFlow` for its Kotlin-first design and better Compose integration
+
+**Example**:
+```kotlin
+class MainViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(MainScreenUiState())
+    val uiState: StateFlow<MainScreenUiState> = _uiState.asStateFlow()
+
+    fun updateThought(thought: String) {
+        _uiState.update { it.copy(thought = thought) }
+    }
+}
+
+@Composable
+fun MainScreen(viewModel: MainViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    // Use uiState to render UI
+}
+```
+
+### Compose State Management
+
+Composable state management MUST follow these patterns:
+- Use `rememberSaveable` for state that should survive process death
+- Use `remember` for state that only needs to survive recomposition
+- State SHOULD be hoisted to ViewModels for business logic
+- Local UI state (e.g., text field focus) MAY remain in Composables
+- Avoid `mutableStateOf` in Composables for business data
+
+**Configuration Survival**:
+```kotlin
+// ❌ Wrong: Lost on config change
+var thought by remember { mutableStateOf("") }
+
+// ✅ Correct: Survives config change (but prefer ViewModel)
+var thought by rememberSaveable { mutableStateOf("") }
+
+// ✅ Best: State in ViewModel (survives process death if using SavedStateHandle)
+val thought by viewModel.uiState.collectAsState()
+```
+
+### Error Handling
+
+Error handling MUST use type-safe patterns:
+- Use sealed classes or `Result<T>` for operation outcomes
+- Network errors MUST be caught and mapped to user-friendly messages
+- UI states MUST include explicit error states (not just null checks)
+- Use exhaustive `when` expressions for handling all error cases
+
+**Example with Sealed Class**:
+```kotlin
+sealed class UiState<out T> {
+    object Idle : UiState<Nothing>()
+    object Loading : UiState<Nothing>()
+    data class Success<T>(val data: T) : UiState<T>()
+    data class Error(val message: String) : UiState<Nothing>()
+}
+
+// ViewModel
+private val _uiState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+
+// UI must handle all cases
+when (val state = uiState.value) {
+    is UiState.Idle -> { /* Show idle state */ }
+    is UiState.Loading -> { /* Show loading spinner */ }
+    is UiState.Success -> { /* Show success message */ }
+    is UiState.Error -> { /* Show error: state.message */ }
+}
+```
+
+**Example with Result Type**:
+```kotlin
+suspend fun sendThought(request: ThoughtRequest): Result<Unit> {
+    return try {
+        api.createThought(request)
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
+```
+
+### Kotlin Coding Standards
+
+All Kotlin code MUST follow these conventions:
+- Use data classes for immutable data models
+- Prefer `val` over `var` (immutability by default)
+- Use nullable types (`T?`) explicitly, avoid `!!` operator
+- Use scope functions appropriately (`let`, `apply`, `run`, `with`, `also`)
+- Use extension functions for utility operations
+- Keep functions small and single-purpose
+- Use meaningful parameter names (avoid single letters except for lambdas)
+
 ## Quality Gates
 
 ### Definition of Done
@@ -209,4 +336,4 @@ For runtime development guidance and practical examples, refer to:
 - **/.specs/**: Feature specifications and implementation plans
 - **/.claude/commands/**: Available workflow commands and their usage
 
-**Version**: 1.0.0 | **Ratified**: 2025-11-05 | **Last Amended**: 2025-11-05
+**Version**: 1.1.0 | **Ratified**: 2025-11-05 | **Last Amended**: 2025-11-05
