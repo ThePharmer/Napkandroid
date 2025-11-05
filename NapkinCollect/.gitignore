@@ -13,3 +13,28 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Kotlin/Android specific
+*.log
+*.tmp
+.env*
+*.class
+*.jar
+*.apk
+*.aab
+*.backup
+
+# Build outputs
+/app/build/
+/*/build/
+
+# Gradle cache
+.gradle/
+
+# IDE
+.vscode/
+.idea/
+
+# System files
+Thumbs.db
+*.swp
