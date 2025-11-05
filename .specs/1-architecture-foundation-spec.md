@@ -11,6 +11,7 @@
 - Q: Dependency conflict resolution strategy - What approach should be used when dependency versions conflict? → A: Use Android BOM (Bill of Materials) and version catalogs to align dependency versions automatically
 - Q: ProGuard rules handling for new libraries - How should ProGuard rules be discovered and validated for new dependencies? → A: Proactive discovery - Test release builds early, use R8 full mode, and validate with automated tests
 - Q: Hilt annotation processing failure recovery - What should be done if Hilt kapt fails during compilation? → A: Incremental debugging - Clean build, invalidate caches, check for circular dependencies, enable verbose kapt logging
+- Q: Build time baseline measurement - How should the baseline be established for SC-005's 30-second build time increase constraint? → A: Clean build - Measure full clean build time (./gradlew clean build) as baseline, no caching
 
 ## User Scenarios & Testing
 
@@ -67,6 +68,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
 - **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
 - **FR-011**: System MUST enable verbose kapt logging in build configuration to facilitate troubleshooting of Hilt annotation processing issues
+- **FR-012**: System MUST measure clean build time baseline before implementation and validate post-implementation build time against 30-second increase constraint
 
 ### Key Entities
 
@@ -83,7 +85,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **SC-002**: Application launches and Hilt initializes without crashes
 - **SC-003**: All constitutional directory structure exists (6 directories: data, ui, viewmodel, di, utils, and existing components)
 - **SC-004**: Base models and classes can be imported and used in other modules
-- **SC-005**: Build time increases by less than 30 seconds compared to current baseline
+- **SC-005**: Clean build time (./gradlew clean build) increases by less than 30 seconds compared to pre-implementation baseline
 - **SC-006**: ProGuard release build completes successfully with R8 full mode, passes automated tests, and produces no missing class warnings
 
 ## Technical Specifications
@@ -194,6 +196,35 @@ If Hilt annotation processing fails, follow this incremental debugging procedure
 5. **Review Build Output**: Kapt errors typically appear with detailed stack traces indicating the problematic class or module
 
 6. **Verify Hilt Setup**: Ensure all Hilt components follow the canonical patterns from Hilt documentation
+
+### Build Performance Measurement
+
+To validate SC-005 (build time increase < 30 seconds), establish and measure baseline:
+
+1. **Establish Baseline** (before implementation):
+   ```bash
+   ./gradlew clean
+   time ./gradlew build
+   ```
+   Record the total build time (e.g., "Build completed in 1m 45s")
+
+2. **Repeat Measurement**: Run clean build 3 times and take the average to account for system variance
+
+3. **Post-Implementation Validation**:
+   ```bash
+   ./gradlew clean
+   time ./gradlew build
+   ```
+   Compare new average build time against baseline
+
+4. **Acceptable Result**: New build time ≤ (Baseline + 30 seconds)
+
+5. **Documentation**: Record baseline and post-implementation times in implementation notes
+
+**Example**:
+- Baseline: 1m 45s (105 seconds average of 3 runs)
+- Post-implementation: 2m 10s (130 seconds)
+- Increase: 25 seconds ✓ (within 30-second constraint)
 
 ### Directory Structure
 
