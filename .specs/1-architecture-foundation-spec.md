@@ -4,6 +4,12 @@
 **Created**: 2025-11-05
 **Status**: Draft
 
+## Clarifications
+
+### Session 2025-11-05
+
+- Q: Dependency conflict resolution strategy - What approach should be used when dependency versions conflict? → A: Use Android BOM (Bill of Materials) and version catalogs to align dependency versions automatically
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Development Infrastructure Ready (Priority: P1)
@@ -40,7 +46,7 @@ As a developer, I need the codebase organized according to the constitution's st
 
 ### Edge Cases
 
-- What happens when dependency versions conflict?
+- **Dependency version conflicts**: Use Android BOM (Bill of Materials) and version catalogs to automatically align dependency versions and minimize conflicts
 - How does the system handle ProGuard rules for new libraries?
 - What if Hilt annotation processing fails?
 
@@ -56,6 +62,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-006**: System MUST configure ProGuard rules for Retrofit and Gson/kotlinx.serialization
 - **FR-007**: System MUST set up Hilt plugins and kapt configuration
 - **FR-008**: System MUST create base sealed class for UiState pattern (Idle, Loading, Success, Error)
+- **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
 
 ### Key Entities
 
@@ -130,6 +137,26 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.48" apply false
 }
 ```
+
+### Dependency Version Management
+
+To prevent dependency conflicts, use Android BOM (Bill of Materials):
+
+**In `NapkinCollect/app/build.gradle.kts`**, add platform dependencies:
+```kotlin
+dependencies {
+    // Use AndroidX BOM for version alignment
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+
+    // Compose dependencies without versions (managed by BOM)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+
+    // Other dependencies as listed above with explicit versions
+}
+```
+
+Consider migrating to Gradle version catalogs (libs.versions.toml) in future iterations for centralized version management.
 
 ### Directory Structure
 
