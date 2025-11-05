@@ -9,6 +9,7 @@
 ### Session 2025-11-05
 
 - Q: Dependency conflict resolution strategy - What approach should be used when dependency versions conflict? → A: Use Android BOM (Bill of Materials) and version catalogs to align dependency versions automatically
+- Q: ProGuard rules handling for new libraries - How should ProGuard rules be discovered and validated for new dependencies? → A: Proactive discovery - Test release builds early, use R8 full mode, and validate with automated tests
 
 ## User Scenarios & Testing
 
@@ -47,7 +48,7 @@ As a developer, I need the codebase organized according to the constitution's st
 ### Edge Cases
 
 - **Dependency version conflicts**: Use Android BOM (Bill of Materials) and version catalogs to automatically align dependency versions and minimize conflicts
-- How does the system handle ProGuard rules for new libraries?
+- **ProGuard rules for new libraries**: Test release builds early in development using R8 full mode, run automated tests on release builds, and validate that all reflection-based libraries have appropriate keep rules
 - What if Hilt annotation processing fails?
 
 ## Requirements
@@ -63,6 +64,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **FR-007**: System MUST set up Hilt plugins and kapt configuration
 - **FR-008**: System MUST create base sealed class for UiState pattern (Idle, Loading, Success, Error)
 - **FR-009**: System MUST use Android BOM and version catalogs for dependency version management to prevent conflicts
+- **FR-010**: System MUST validate ProGuard rules by building and testing in release mode with R8 full mode enabled
 
 ### Key Entities
 
@@ -80,7 +82,7 @@ As a developer, I need the codebase organized according to the constitution's st
 - **SC-003**: All constitutional directory structure exists (6 directories: data, ui, viewmodel, di, utils, and existing components)
 - **SC-004**: Base models and classes can be imported and used in other modules
 - **SC-005**: Build time increases by less than 30 seconds compared to current baseline
-- **SC-006**: ProGuard release build completes successfully with no missing class warnings
+- **SC-006**: ProGuard release build completes successfully with R8 full mode, passes automated tests, and produces no missing class warnings
 
 ## Technical Specifications
 
@@ -266,6 +268,28 @@ Add to `proguard-rules.pro`:
 -keep class javax.inject.** { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 ```
+
+### ProGuard/R8 Validation Strategy
+
+To proactively discover and validate ProGuard rules:
+
+1. **Enable R8 Full Mode** in `gradle.properties`:
+   ```properties
+   android.enableR8.fullMode=true
+   ```
+
+2. **Early Release Build Testing**: Create release build variant early in development cycle, before implementing features
+
+3. **Automated Testing on Release Builds**: Run unit and integration tests against release APK to catch reflection/serialization issues
+
+4. **Validation Checklist**:
+   - Build release APK successfully
+   - Install and launch release APK on device/emulator
+   - Run automated test suite against release build
+   - Check logcat for R8 warnings during build
+   - Verify no `ClassNotFoundException` or `NoSuchMethodException` at runtime
+
+5. **Continuous Validation**: Test release builds as part of CI/CD pipeline (future enhancement in Spec 4)
 
 ## Assumptions
 
